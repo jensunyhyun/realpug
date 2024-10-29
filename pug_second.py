@@ -13,7 +13,6 @@ from selenium.common.exceptions import NoSuchElementException
 from PIL import Image, ImageTk
 import requests
 from io import BytesIO
-from PIL import Image, ImageTk
 import urllib.request
 
 # 업데이트 시간별 제품 저장 구조
@@ -462,40 +461,66 @@ def on_product_select(event):
 
 # GUI 설정
 root = tk.Tk()
-root.tk.call('tk', 'scaling', 2.0)  # 배율을 2배로 높이기
+root.tk.call('tk', 'scaling', 1.5)  # 배율을 2배로 높이기
 root.title("제품 목록 및 이미지 표시")
-root.geometry("1600x1200")
+root.geometry("1100x900")
 
-# 최상위 프레임 생성하여 중앙 프레임과 오른쪽 업데이트 로그 프레임을 포함
-top_frame = tk.Frame(root, bg="gray")
-top_frame.pack(fill="both", expand=True)
+outer_frame = tk.Frame(root, width=300, height=200)
+outer_frame.pack(padx=10, pady=10, fill="both", expand=True)
+outer_frame.grid_propagate(False)  # 내부 위젯에 의해 크기가 변경되지 않도록 설정
 
-# 중앙에 selection_frame과 main_control_frame 포함
-center_frame = tk.Frame(top_frame, bg="red")
-center_frame.pack(anchor="center",side="left", padx=10, pady=10, fill="both", expand=False)
+# outer_frame에 좌우 여백을 주어 중앙 정렬 유지
+outer_frame.grid_rowconfigure(0, weight=1)
+outer_frame.grid_columnconfigure(0, weight=1)
 
-# 오른쪽에 업데이트 로그 프레임 생성
-#update_frame = tk.Frame(top_frame, width=300, bg="blue")  # 오른쪽 업데이트 로그 공간
-#update_frame.pack(side="right", fill="y", padx=10, pady=10)
+# top_frame - center frame, update log text
+top_frame = tk.Frame(outer_frame, width=900, height=330)
+top_frame.grid(row=0, column=0, sticky="nsew")
+top_frame.grid_propagate(False)  # 내부 위젯 크기에 의해 top_frame 크기가 변경되지 않도록 설정
 
+# top_frame의 행과 열 가중치 설정
+top_frame.grid_rowconfigure(0, weight=1)
+top_frame.grid_columnconfigure(0, weight=1)  # center_frame이 0열에서 중앙에 위치
+top_frame.grid_columnconfigure(1, weight=0)  # update_log_text가 1열에서 중앙에 위치
+
+# 고정 크기의 bottom_frame 생성 및 grid 배치
+bottom_frame = tk.Frame(outer_frame, width=5, height=150)
+bottom_frame.grid(row=1, column=0, padx=0, pady=0, sticky="nsew")  # pady를 0으로 설정
+bottom_frame.grid_propagate(False)
+
+# top_frame 안에 0열 center_frame, 1열 update_log_text 배치
+center_frame = tk.Frame(top_frame, bg="lightpink")
+center_frame.grid(row=0, column=0, sticky="nsew")
+center_frame.grid_rowconfigure(0, weight=1)  # selection_frame이 0행에서 확장
+center_frame.grid_rowconfigure(1, weight=1)  # main_control_frame이 1행에서 확장
+center_frame.grid_columnconfigure(0, weight=1)  # 열 중앙 정렬 유지
+
+# selection_frame 설정
 selection_frame = tk.Frame(center_frame)
-selection_frame.pack()
+selection_frame.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
 
+# selection_frame 내부 열 가중치 설정
+selection_frame.grid_columnconfigure(0, weight=1)  # category 열
+selection_frame.grid_columnconfigure(1, weight=1)  # status 열
+selection_frame.grid_columnconfigure(2, weight=1)  # purchase 열
+selection_frame.grid_columnconfigure(3, weight=1)  # button 열
+
+# category_label과 category_listbox를 같은 열에 배치
 category_label = tk.Label(selection_frame, text="카테고리를 선택하세요:")
-category_label.grid(row=0, column=0, sticky="w")
+category_label.grid(row=0, column=0, sticky="nw", pady=0)
 
+category_listbox = tk.Listbox(selection_frame, height=15)
+category_listbox.grid(row=1, column=0, sticky="nsew")  # nsew로 확장
 category_list = fetch_categories()
-
-category_listbox = tk.Listbox(selection_frame, height=10)
-category_listbox.grid(row=1, column=0, padx=10, pady=10)
 for category in category_list:
     category_listbox.insert(tk.END, category)
 category_listbox.select_set(0)
 
+# 상태 선택 프레임
 status_frame = tk.Frame(selection_frame)
-status_frame.grid(row=1, column=1, padx=10)
+status_frame.grid(row=1, column=1, sticky="nsew", padx=(5, 5))  # 좌우 여백 최소화
 status_label = tk.Label(status_frame, text="원하는 상태를 선택하세요:")
-status_label.pack(anchor="w")
+status_label.pack(anchor="w", pady=(0, 5))
 status_vars = {
     "진행중": tk.BooleanVar(value=True),
     "마감 임박": tk.BooleanVar(value=True),
@@ -507,8 +532,9 @@ for status, var in status_vars.items():
     cb = tk.Checkbutton(status_frame, text=status, variable=var)
     cb.pack(anchor="w")
 
+# 구매처 선택 프레임
 purchase_frame = tk.Frame(selection_frame)
-purchase_frame.grid(row=1, column=2, padx=10)
+purchase_frame.grid(row=1, column=2, sticky="nsew", padx=(5, 5))  # 좌우 여백 최소화
 purchase_label = tk.Label(purchase_frame, text="원하는 구매처를 선택하세요:")
 purchase_label.pack(anchor="w")
 purchase_vars = {
@@ -521,72 +547,95 @@ for purchase, var in purchase_vars.items():
     cb = tk.Checkbutton(purchase_frame, text=purchase, variable=var)
     cb.pack(anchor="w")
 
-# 필터링 및 스크래핑 버튼을 포함할 프레임 생성
+# 필터링 및 스크래핑 버튼 프레임
 button_frame = tk.Frame(selection_frame)
-button_frame.grid(row=1, column=3, rowspan=2, padx=10, pady=5, sticky="ns")
+button_frame.grid(row=1, column=3, sticky="nsew")  # 버튼 프레임을 최대한 확장
 
 # 필터링 및 스크래핑 버튼 배치
 filter_button = tk.Button(button_frame, text="필터링", command=filter_products, width=15, height=2)
-filter_button.grid(row=1, column=0, pady=(0, 5))
+filter_button.grid(row=0, column=0, pady=(0, 5))
 
 scraping_button = tk.Button(button_frame, text="스크래핑", command=scrape_all_products, width=15, height=2)
-scraping_button.grid(row=2, column=0)
+scraping_button.grid(row=1, column=0)
 
-# 메인 키워드 및 업데이트 컨트롤 프레임
+# main_control_frame 배치와 확장 설정
 main_control_frame = tk.Frame(center_frame)
-main_control_frame.pack(pady=5)
+main_control_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=5)
+
+# main_control_frame 내부 구성 설정
+main_control_frame.grid_rowconfigure(1, weight=1)  # keyword_listbox가 있는 행 확장 가능
+main_control_frame.grid_columnconfigure(0, weight=1)
 
 # 키워드 입력 및 필터링 프레임
-keyword_frame = tk.Frame(main_control_frame)
+keyword_frame = tk.Frame(main_control_frame, width=400, height=300)
 keyword_frame.grid(row=0, column=0, padx=10, sticky="nw")
-keyword_label = tk.Label(keyword_frame, text="키워드를 입력하세요:")
+keyword_frame.grid_columnconfigure(1, weight=1)  # Entry와 Listbox 확장 설정
+
+# 키워드 입력 라벨과 엔트리
+keyword_label = tk.Label(keyword_frame, text="키워드를 입력하세요:", width=40)
 keyword_label.grid(row=0, column=0, sticky="w")
 keyword_entry = tk.Entry(keyword_frame, width=30)
-keyword_entry.grid(row=0, column=1, padx=5, sticky="w")
+keyword_entry.grid(row=0, column=1, padx=0, sticky="w")
 
-filter_button = tk.Button(keyword_frame, text="키워드 필터링", command=apply_keyword_filter)
+# 필터링과 초기화 버튼
+filter_button = tk.Button(keyword_frame, text="필터링", command=apply_keyword_filter)
 filter_button.grid(row=0, column=2, padx=(5, 2))
 reset_button = tk.Button(keyword_frame, text="초기화", command=reset_keyword_filter)
 reset_button.grid(row=0, column=3, padx=(2, 5))
 
-# 키워드 목록창과 추가/삭제 버튼
-keyword_listbox = tk.Listbox(keyword_frame, height=5, width=30, selectmode=tk.SINGLE)
-keyword_listbox.grid(row=1, column=1, pady=5)
+# keyword_listbox를 담을 Frame 생성 (스크롤바와 함께 배치하기 위함)
+keyword_listbox_frame = tk.Frame(keyword_frame, height=100)
+keyword_listbox_frame.grid(row=1, column=1, pady=5, sticky="nsew")  # (1,1) 위치 설정
+keyword_frame.grid_rowconfigure(1, weight=1)  # Listbox Frame이 확장되도록 설정
+keyword_frame.grid_columnconfigure(1, weight=1)  # 열 확장 설정
 
+# Frame 내부에 Listbox와 Scrollbar 생성
+keyword_listbox = tk.Listbox(keyword_listbox_frame, height=15, width=30, selectmode=tk.SINGLE)
+keyword_listbox.pack(side="left", fill="both", expand=True)
+
+# Scrollbar 설정 및 Listbox에 연결
+scrollbar = tk.Scrollbar(keyword_listbox_frame, orient="vertical", command=keyword_listbox.yview)
+scrollbar.pack(side="right", fill="y")  # 오른쪽에 스크롤바 배치
+keyword_listbox.configure(yscrollcommand=scrollbar.set)
+
+# keyword_listbox_frame이 Listbox와 Scrollbar를 담을 공간을 확장
+keyword_listbox_frame.pack_propagate(False)
+
+#추가/삭제 버튼
 button_frame = tk.Frame(keyword_frame)
-button_frame.grid(row=1, column=2, columnspan=2, pady=5, sticky="w")
+button_frame.grid(row=1, column=2, pady=5, sticky="nw")
 
 add_keyword_button = tk.Button(button_frame, text="추가", command=add_keyword)
 add_keyword_button.grid(row=0, column=0, sticky="w", padx=5, pady=(0, 5))
 delete_keyword_button = tk.Button(button_frame, text="삭제", command=delete_keyword)
 delete_keyword_button.grid(row=1, column=0, sticky="w", padx=5)
 
-update_button_frame = tk.Frame(main_control_frame)
-update_button_frame.grid(row=0, column=1, padx=10, sticky="ne")
+#업데이트 시작/정지 버튼
+update_button_frame = tk.Frame(keyword_frame, bg="red")
+update_button_frame.grid(row=0, column=4, padx=10, rowspan=2, sticky="ne")
 start_button = tk.Button(update_button_frame, text="업데이트 시작", command=start_updates, width=15, height=2)
+add_keyword_button.grid(row=0, column=0, sticky="w", padx=5, pady=(0, 5))
 start_button.pack(pady=(0, 5))
 stop_button = tk.Button(update_button_frame, text="업데이트 정지", command=stop_updates, width=15, height=2, state="disabled")
 stop_button.pack()
 
 # 오른쪽 업데이트 로그 텍스트
-update_log_text = tk.Text(top_frame, wrap="word", bg="green", width=40, height=30)  # 고정된 width, height 설정
-update_log_text.pack(side="left", padx=10, pady=10)  # 확장하지 않음으로 고정 크기 유지
+update_log_text = tk.Text(top_frame, wrap="word", width=25, height=50)
+update_log_text.grid(row=0, column=1, sticky="nsew", padx=(10,0), pady=(10, 180))
 update_log_text.configure(state="disabled")  # 초기 비활성화 설정
+update_log_text.grid_propagate(False)
 
 # 업데이트 로그 클릭 이벤트 바인딩
 update_log_text.bind("<Button-1>", on_update_time_select)
 
-# 텍스트 및 이미지 표시를 위한 메인 프레임 생성
-text_frame = tk.Frame(root)
-text_frame.pack(padx=10, pady=10, fill="both", expand=True)
-
 # 왼쪽 패널 생성 (이미지 프레임용)
-left_panel = tk.Frame(text_frame)
+left_panel = tk.Frame(bottom_frame, width=300, height=400)  # 원하는 고정 크기 지정
 left_panel.pack(side="left", padx=10, pady=10, fill="y")
+left_panel.pack_propagate(False)  # 내부 위젯 크기에 맞춰 확장되지 않도록 설정
 
 # 이미지 표시 프레임 생성 및 배경색 설정
 image_frame = tk.Frame(left_panel, bg="white", width=250, height=250)
-image_frame.pack(anchor="n", pady=10)  # 상단에 고정
+image_frame.pack(anchor="n", pady=10)
 image_frame.pack_propagate(False)  # 내부 요소 크기로 프레임 크기 변경 방지
 
 # 이미지 레이블 생성
@@ -600,17 +649,13 @@ custom_font.configure(size=11)  # 원하는 글씨 크기 설정
 # 제품 정보 텍스트 출력 프레임 설정 (이미지 바로 아래에 위치)
 info_text = tk.Text(left_panel, height=15, width=30, wrap="word")
 info_text.pack(anchor="n", pady=10)  
-
-# 기본 메시지 설정
 info_text.insert("1.0", "========정보 없음========")  # 기본 텍스트 설정
-info_text.configure(state="disabled")  # 사용자 수정 방지
+info_text.configure(state="disabled", font=custom_font)  # 사용자 수정 방지
 
-# info_text 위젯에 폰트 설정 적용
-info_text.configure(font=custom_font)
-
-# 오른쪽 패널 생성 (제품 목록과 업데이트 로그용)
-right_panel = tk.Frame(text_frame)
+# 오른쪽 패널 생성 (제품 목록)
+right_panel = tk.Frame(bottom_frame, width=600, height=400)  # 원하는 고정 크기 지정
 right_panel.pack(side="left", padx=10, pady=10, fill="both", expand=True)
+right_panel.pack_propagate(False)
 
 # 텍스트 출력 위젯 대신 Listbox로 변경
 product_listbox = tk.Listbox(right_panel, height=40, width=90) 
@@ -622,5 +667,19 @@ scrollbar = tk.Scrollbar(right_panel, command=product_listbox.yview)
 product_listbox.configure(yscrollcommand=scrollbar.set)
 scrollbar.pack(side="left", fill="y")
 
+root.update_idletasks()  # 업데이트 후 정확한 위젯 크기 반환
+print("Category Listbox Height:", category_listbox.winfo_height())
+print("Status Frame Height:", status_frame.winfo_height())
+print("Purchase Frame Height:", purchase_frame.winfo_height())
+print("Button Frame Height:", button_frame.winfo_height())
+
+print("Category Listbox Width:", category_listbox.winfo_width())
+print("Status Frame Width:", status_frame.winfo_width())
+print("Purchase Frame Width:", purchase_frame.winfo_width())
+print("Button Frame Width:", button_frame.winfo_width())
+print(category_listbox.winfo_width()+status_frame.winfo_width()+purchase_frame.winfo_width()+button_frame.winfo_width())
+
+print("Top Frame Height:", top_frame.winfo_height())
+print("Top Frame Width:", top_frame.winfo_width())
 
 root.mainloop()

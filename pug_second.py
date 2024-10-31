@@ -45,71 +45,6 @@ def find_element_if_exists(element, by, value):
     except NoSuchElementException:
         return None
     
-def fetch_products_by_category(category_name="전체"):
-    driver = webdriver.Chrome()
-    try:
-        driver.get(url)
-
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_all_elements_located((By.CSS_SELECTOR, '.category-bar-container .category-btn'))
-        )
-        category_buttons = driver.find_elements(By.CSS_SELECTOR, '.category-bar-container .category-btn')
-
-        for button in category_buttons:
-            if category_name == "전체" or category_name in button.text:
-                driver.execute_script("arguments[0].click();", button)
-                time.sleep(5)
-                break
-
-        scroll_to_load_all(driver)
-        product_elements = driver.find_elements(By.CSS_SELECTOR, '.campaign-card')
-
-        product_list = []
-        for product in product_elements:
-            # 상태 및 다른 필드 수집
-            if product.find_elements(By.CSS_SELECTOR, '.close-text.close'):
-                status_text = "모집 마감"
-            elif product.find_elements(By.CSS_SELECTOR, '.close-text.pause'):
-                status_text = "재오픈 예정"
-            elif product.find_elements(By.CSS_SELECTOR, '.state-badge.open .state-name'):
-                status_text = "오픈 예정"
-            elif product.find_elements(By.CSS_SELECTOR, '.state-badge.deadlineImminent .state-name'):
-                status_text = "마감 임박"
-            else:
-                status_text = "진행중"
-
-            product_name_element = find_element_if_exists(product, By.CSS_SELECTOR, 'div.text-md')
-            product_name = product_name_element.text.strip() if product_name_element else "제품명 없음"
-
-            actual_price_element = find_element_if_exists(product, By.CSS_SELECTOR, 'span[style*="color: rgb(79, 21, 255)"]')
-            actual_price = actual_price_element.text.strip() if actual_price_element else "실제 구매가 없음"
-
-            original_price_element = find_element_if_exists(product, By.CSS_SELECTOR, 'span.text-xs.text-gray-4.font-bold.md\\:ml-2\\.5.line-through.leading-\\[18px\\].tracking-tight')
-            original_price = original_price_element.text.strip() if original_price_element else "가격 정보 없음"
-
-            tags = product.find_elements(By.CSS_SELECTOR, 'span.ant-tag')
-            if tags:
-                purchase_location = tags[0].text.strip()
-                features = ', '.join(tag.text.strip() for tag in tags[1:])
-            else:
-                purchase_location = "구매처 정보 없음"
-                features = "특징 정보 없음"
-
-            # 카테고리 필드 추가
-            product_list.append({
-                "category": category_name,  # 카테고리를 저장
-                "status": status_text,
-                "title": product_name,
-                "actual_price": actual_price,
-                "price": original_price,
-                "purchase_location": purchase_location,
-                "features": features
-            })
-
-        return product_list
-
-    finally:
-        driver.quit()
 
 
 # 스크래핑 기능 - 모든 카테고리 제품 스크래핑
@@ -489,7 +424,7 @@ bottom_frame.grid(row=1, column=0, padx=0, pady=0, sticky="nsew")  # pady를 0�
 bottom_frame.grid_propagate(False)
 
 # top_frame 안에 0열 center_frame, 1열 update_log_text 배치
-center_frame = tk.Frame(top_frame, bg="lightpink")
+center_frame = tk.Frame(top_frame)
 center_frame.grid(row=0, column=0, sticky="nsew")
 center_frame.grid_rowconfigure(0, weight=1)  # selection_frame이 0행에서 확장
 center_frame.grid_rowconfigure(1, weight=1)  # main_control_frame이 1행에서 확장
@@ -552,11 +487,11 @@ button_frame = tk.Frame(selection_frame)
 button_frame.grid(row=1, column=3, sticky="nsew")  # 버튼 프레임을 최대한 확장
 
 # 필터링 및 스크래핑 버튼 배치
-filter_button = tk.Button(button_frame, text="필터링", command=filter_products, width=15, height=2)
-filter_button.grid(row=0, column=0, pady=(0, 5))
-
 scraping_button = tk.Button(button_frame, text="스크래핑", command=scrape_all_products, width=15, height=2)
-scraping_button.grid(row=1, column=0)
+scraping_button.grid(row=0, column=0, pady=(0, 5))
+
+filter_button = tk.Button(button_frame, text="필터링", command=filter_products, width=15, height=2)
+filter_button.grid(row=1, column=0)
 
 # main_control_frame 배치와 확장 설정
 main_control_frame = tk.Frame(center_frame)
@@ -611,7 +546,7 @@ delete_keyword_button = tk.Button(button_frame, text="삭제", command=delete_ke
 delete_keyword_button.grid(row=1, column=0, sticky="w", padx=5)
 
 #업데이트 시작/정지 버튼
-update_button_frame = tk.Frame(keyword_frame, bg="red")
+update_button_frame = tk.Frame(keyword_frame)
 update_button_frame.grid(row=0, column=4, padx=10, rowspan=2, sticky="ne")
 start_button = tk.Button(update_button_frame, text="업데이트 시작", command=start_updates, width=15, height=2)
 add_keyword_button.grid(row=0, column=0, sticky="w", padx=5, pady=(0, 5))
@@ -620,10 +555,17 @@ stop_button = tk.Button(update_button_frame, text="업데이트 정지", command
 stop_button.pack()
 
 # 오른쪽 업데이트 로그 텍스트
-update_log_text = tk.Text(top_frame, wrap="word", width=25, height=50)
-update_log_text.grid(row=0, column=1, sticky="nsew", padx=(10,0), pady=(10, 180))
+update_log_text = tk.Text(top_frame, wrap="word", width=25, height=20)
+update_log_text.grid(row=0, column=1, sticky="nsew", padx=(10,0), pady=(10, 120))
 update_log_text.configure(state="disabled")  # 초기 비활성화 설정
 update_log_text.grid_propagate(False)
+
+# 스크롤바 생성 및 위치 설정
+scrollbar = tk.Scrollbar(top_frame, orient="vertical", command=update_log_text.yview)
+scrollbar.grid(row=0, column=2, sticky="ns", padx=(0, 10), pady=(10, 120))
+
+# Text 위젯에 스크롤바 설정
+update_log_text.configure(yscrollcommand=scrollbar.set)
 
 # 업데이트 로그 클릭 이벤트 바인딩
 update_log_text.bind("<Button-1>", on_update_time_select)
